@@ -5,37 +5,87 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Assignment Dashboard</title>
   <style>
-    body { font-family: "Times New Roman", Times, serif; margin: 24px; max-width: 980px; }
+    :root {
+      --bg: #fff;
+      --text: #111;
+      --muted: #555;
+      --border: #ddd;
+      --card-bg: #fff;
+      --pill-bg: #fafafa;
+      --bar-track: #f1f1f1;
+      --bar-fill: #F4C2C2;
+      --warn: #b00020;
+    }
+    [data-theme="dark"] {
+      --bg: #1a1a1a;
+      --text: #e8e8e8;
+      --muted: #aaa;
+      --border: #444;
+      --card-bg: #252525;
+      --pill-bg: #333;
+      --bar-track: #333;
+      --bar-fill: #c97b8a;
+      --warn: #ef5350;
+    }
+    body { font-family: "Times New Roman", Times, serif; margin: 24px; max-width: 980px; background: var(--bg); color: var(--text); }
     h1 { margin: 0 0 6px; }
-    .muted { color: #555; margin: 0 0 14px; }
+    .muted { color: var(--muted); margin: 0 0 14px; }
     .top { display:flex; gap:10px; align-items:center; flex-wrap: wrap; }
-    button { padding: 10px 12px; cursor: pointer; }
-    .pill { display:inline-block; padding: 6px 10px; border:1px solid #ddd; border-radius: 999px; background:#fafafa; }
+    button { padding: 10px 12px; cursor: pointer; background: var(--pill-bg); color: var(--text); border: 1px solid var(--border); border-radius: 6px; font-family: inherit; }
+    button:hover { filter: brightness(1.1); }
+    .pill { display:inline-block; padding: 6px 10px; border:1px solid var(--border); border-radius: 999px; background: var(--pill-bg); }
     .cards { display:grid; grid-template-columns: repeat(4, minmax(160px, 1fr)); gap:10px; margin-top: 14px; }
-    .card { border:1px solid #ddd; border-radius: 14px; padding: 12px; }
+    .card { border:1px solid var(--border); border-radius: 14px; padding: 12px; background: var(--card-bg); }
     .big { font-size: 20px; font-weight: 800; }
     table { width: 100%; border-collapse: collapse; margin-top: 14px; }
-    th, td { border-bottom: 1px solid #ddd; padding: 10px 8px; text-align: left; vertical-align: middle; }
-    .bar { height: 12px; background: #f1f1f1; border-radius: 999px; overflow: hidden; }
-    .bar > div { height: 100%; background: #F4C2C2; width: 0%; }
+    th, td { border-bottom: 1px solid var(--border); padding: 10px 8px; text-align: left; vertical-align: middle; }
+    .bar { height: 12px; background: var(--bar-track); border-radius: 999px; overflow: hidden; }
+    .bar > div { height: 100%; background: var(--bar-fill); width: 0%; }
     .right { text-align: right; }
-    .warn { color: #b00020; }
+    .warn { color: var(--warn); }
     .section-title { font-size: 1.1em; font-weight: 700; margin: 24px 0 10px; }
     .per-day-table { margin-top: 6px; }
-    .goals-add { border: 1px solid #ddd; border-radius: 14px; padding: 16px; margin-top: 12px; max-width: 480px; }
+    .goals-add { border: 1px solid var(--border); border-radius: 14px; padding: 16px; margin-top: 12px; max-width: 480px; background: var(--card-bg); }
     .goals-add .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 10px; }
     .goals-add label { min-width: 80px; }
-    .goals-add input[type="date"], .goals-add select { padding: 8px 10px; font-family: inherit; }
+    .goals-add input[type="date"], .goals-add select { padding: 8px 10px; font-family: inherit; background: var(--pill-bg); color: var(--text); border: 1px solid var(--border); border-radius: 6px; }
     .goals-list { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
-    .goal-card { border: 1px solid #ddd; border-radius: 14px; padding: 12px 16px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
+    .goal-card { border: 1px solid var(--border); border-radius: 14px; padding: 12px 16px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; background: var(--card-bg); }
     .goal-card .goal-info { flex: 1; min-width: 200px; }
     .goal-card .goal-info strong { display: block; margin-bottom: 4px; }
     .goal-card .goal-remove { padding: 6px 10px; cursor: pointer; }
+    .header-row { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 16px; margin-bottom: 8px; }
+    .header-left { flex: 1; min-width: 0; }
+    .theme-controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .theme-controls select { padding: 6px 10px; font-family: inherit; background: var(--pill-bg); color: var(--text); border: 1px solid var(--border); border-radius: 6px; }
+    .preference-colors { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .preference-colors label { font-size: 12px; color: var(--muted); margin-right: 2px; }
+    .preference-colors input[type="color"] { width: 28px; height: 28px; padding: 0; border: 1px solid var(--border); border-radius: 6px; cursor: pointer; background: transparent; }
+    .preference-colors.hidden { display: none; }
   </style>
 </head>
 <body>
-  <h1>Assignment Dashboard</h1>
-  <p class="muted">Reads <span class="pill">gradebook-progress.json</span> from this folder.</p>
+  <div class="header-row">
+    <div class="header-left">
+      <h1>Assignment Dashboard</h1>
+      <p class="muted">Reads <span class="pill">gradebook-progress.json</span> from this folder.</p>
+    </div>
+    <div class="theme-controls">
+      <select id="themeSelect" title="Theme">
+        <option value="light">Light</option>
+        <option value="dark">Dark</option>
+        <option value="preference">Preference</option>
+      </select>
+      <div id="preferenceColors" class="preference-colors hidden">
+        <label>Bg</label><input type="color" id="prefBg" value="#ffffff" title="Background" />
+        <label>Text</label><input type="color" id="prefText" value="#111111" title="Text" />
+        <label>Muted</label><input type="color" id="prefMuted" value="#555555" title="Muted text" />
+        <label>Border</label><input type="color" id="prefBorder" value="#dddddd" title="Borders" />
+        <label>Card</label><input type="color" id="prefCard" value="#ffffff" title="Card background" />
+        <label>Bar</label><input type="color" id="prefBar" value="#F4C2C2" title="Progress bar fill" />
+      </div>
+    </div>
+  </div>
 
   <div class="top">
     <button id="refreshBtn">Refresh from file</button>
@@ -68,7 +118,7 @@
     <tbody id="tbody"></tbody>
   </table>
 
-d  <h2 class="section-title">Per day (to complete on time)</h2>
+  <h2 class="section-title">Per day (to complete on time)</h2>
   <table class="per-day-table">
     <thead>
       <tr><th>Course</th><th>Per day</th></tr>
@@ -111,6 +161,91 @@ d  <h2 class="section-title">Per day (to complete on time)</h2>
   const JSON_FILE = "gradebook-progress.json";
   const STORAGE_KEY = "gradebook-progress-cache";
   const GOAL_STORAGE_KEY = "gradebook-goal";
+  const THEME_STORAGE_KEY = "dashboard-theme";
+  const THEME_PREFERENCE_KEY = "dashboard-theme-preference";
+
+  const defaultPreference = { bg: "#ffffff", text: "#111111", muted: "#555555", border: "#dddddd", card: "#ffffff", bar: "#F4C2C2" };
+
+  function loadTheme() {
+    try { return localStorage.getItem(THEME_STORAGE_KEY) || "light"; } catch (e) { return "light"; }
+  }
+  function saveTheme(mode) {
+    try { localStorage.setItem(THEME_STORAGE_KEY, mode); } catch (e) {}
+  }
+  function loadPreferenceColors() {
+    try {
+      const raw = localStorage.getItem(THEME_PREFERENCE_KEY);
+      return raw ? { ...defaultPreference, ...JSON.parse(raw) } : { ...defaultPreference };
+    } catch (e) { return { ...defaultPreference }; }
+  }
+  function savePreferenceColors(pref) {
+    try { localStorage.setItem(THEME_PREFERENCE_KEY, JSON.stringify(pref)); } catch (e) {}
+  }
+  function applyTheme(mode, pref) {
+    const root = document.documentElement;
+    root.removeAttribute("data-theme");
+    root.style.removeProperty("--bg");
+    root.style.removeProperty("--text");
+    root.style.removeProperty("--muted");
+    root.style.removeProperty("--border");
+    root.style.removeProperty("--card-bg");
+    root.style.removeProperty("--pill-bg");
+    root.style.removeProperty("--bar-track");
+    root.style.removeProperty("--bar-fill");
+    root.style.removeProperty("--warn");
+    if (mode === "dark") root.setAttribute("data-theme", "dark");
+    else if (mode === "preference" && pref) {
+      root.style.setProperty("--bg", pref.bg);
+      root.style.setProperty("--text", pref.text);
+      root.style.setProperty("--muted", pref.muted);
+      root.style.setProperty("--border", pref.border);
+      root.style.setProperty("--card-bg", pref.card);
+      root.style.setProperty("--pill-bg", pref.card);
+      root.style.setProperty("--bar-track", pref.border);
+      root.style.setProperty("--bar-fill", pref.bar);
+      root.style.setProperty("--warn", "#b00020");
+    }
+  }
+  function initTheme() {
+    const mode = loadTheme();
+    const pref = loadPreferenceColors();
+    const sel = document.getElementById("themeSelect");
+    const panel = document.getElementById("preferenceColors");
+    if (sel) sel.value = mode;
+    if (panel) panel.classList.toggle("hidden", mode !== "preference");
+    document.getElementById("prefBg").value = pref.bg;
+    document.getElementById("prefText").value = pref.text;
+    document.getElementById("prefMuted").value = pref.muted;
+    document.getElementById("prefBorder").value = pref.border;
+    document.getElementById("prefCard").value = pref.card;
+    document.getElementById("prefBar").value = pref.bar;
+    applyTheme(mode, pref);
+  }
+  function onThemeChange() {
+    const mode = document.getElementById("themeSelect").value;
+    saveTheme(mode);
+    document.getElementById("preferenceColors").classList.toggle("hidden", mode !== "preference");
+    const pref = mode === "preference" ? loadPreferenceColors() : null;
+    applyTheme(mode, pref);
+  }
+  function onPreferenceColorChange() {
+    const pref = {
+      bg: document.getElementById("prefBg").value,
+      text: document.getElementById("prefText").value,
+      muted: document.getElementById("prefMuted").value,
+      border: document.getElementById("prefBorder").value,
+      card: document.getElementById("prefCard").value,
+      bar: document.getElementById("prefBar").value
+    };
+    savePreferenceColors(pref);
+    if (loadTheme() === "preference") applyTheme("preference", pref);
+  }
+  initTheme();
+  document.getElementById("themeSelect").addEventListener("change", onThemeChange);
+  ["prefBg","prefText","prefMuted","prefBorder","prefCard","prefBar"].forEach(id => {
+    document.getElementById(id).addEventListener("input", onPreferenceColorChange);
+    document.getElementById(id).addEventListener("change", onPreferenceColorChange);
+  });
 
   function cleanText(s){ return (s || "").toString().replace(/\s+/g," ").trim(); }
 

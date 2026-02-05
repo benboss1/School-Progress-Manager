@@ -1,6 +1,6 @@
 {
     "manifest_version": 3,
-    "name": "Buzz Gradebook Export (Private)",
+    "name": "Gradebook Export (Private)",
     "version": "1.0.0",
     "description": "Scrape Buzz gradebook/all and export progress JSON (private, no logins).",
     "host_permissions": ["https://epicschools.agilixbuzz.com/*"],

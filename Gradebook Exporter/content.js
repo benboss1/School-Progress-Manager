@@ -84,7 +84,7 @@
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = "buzz-gradebook-progress.json";
+      a.download = "gradebook-progress.json";
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -98,10 +98,10 @@
     }
   
     function ensurePanel() {
-      if (document.getElementById("buzz-export-panel")) return document.getElementById("buzz-export-status");
+      if (document.getElementById("gradebook-export-panel")) return document.getElementById("gradebook-export-status");
   
       const panel = document.createElement("div");
-      panel.id = "buzz-export-panel";
+      panel.id = "gradebook-export-panel";
       panel.style.cssText = `
         position: fixed; top: 14px; right: 14px; z-index: 999999;
         background: white; border: 1px solid rgba(0,0,0,.15);
@@ -110,12 +110,12 @@
       `;
   
       panel.innerHTML = `
-        <div style="font-weight:700; margin-bottom:6px;">Buzz Export (Private)</div>
-        <div id="buzz-export-status" style="font-size:12px; color:#555; margin-bottom:8px;">
+        <div style="font-weight:700; margin-bottom:6px;">Export (Private)</div>
+        <div id="gradebook-export-status" style="font-size:12px; color:#555; margin-bottom:8px;">
           Waiting for gradebook table…
         </div>
-        <button id="buzz-copy" style="width:100%; padding:8px; margin-bottom:6px; cursor:pointer;">Copy JSON</button>
-        <button id="buzz-dl" style="width:100%; padding:8px; cursor:pointer;">Download JSON</button>
+        <button id="gradebook-copy" style="width:100%; padding:8px; margin-bottom:6px; cursor:pointer;">Copy JSON</button>
+        <button id="gradebook-dl" style="width:100%; padding:8px; cursor:pointer;">Download JSON</button>
         <div style="font-size:11px; color:#777; margin-top:8px; line-height:1.25;">
           No passwords. Reads only the page you’re already logged into.
         </div>
@@ -123,8 +123,8 @@
   
       document.body.appendChild(panel);
   
-      const status = panel.querySelector("#buzz-export-status");
-      panel.querySelector("#buzz-copy").addEventListener("click", async () => {
+      const status = panel.querySelector("#gradebook-export-status");
+      panel.querySelector("#gradebook-copy").addEventListener("click", async () => {
         const res = scrape();
         if (!res.ok) return alert("Not ready: " + res.reason);
         try {
@@ -135,7 +135,7 @@
         }
       });
   
-      panel.querySelector("#buzz-dl").addEventListener("click", () => {
+      panel.querySelector("#gradebook-dl").addEventListener("click", () => {
         const res = scrape();
         if (!res.ok) return alert("Not ready: " + res.reason);
         downloadJson(res);

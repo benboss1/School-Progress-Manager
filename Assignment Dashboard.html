@@ -35,7 +35,7 @@
 </head>
 <body>
   <h1>Assignment Dashboard</h1>
-  <p class="muted">Reads <span class="pill">buzz-gradebook-progress.json</span> from this folder.</p>
+  <p class="muted">Reads <span class="pill">gradebook-progress.json</span> from this folder.</p>
 
   <div class="top">
     <button id="refreshBtn">Refresh from file</button>
@@ -108,9 +108,9 @@ d  <h2 class="section-title">Per day (to complete on time)</h2>
   e.target.value = "";       // allow re-importing same file later
 });
 
-  const JSON_FILE = "buzz-gradebook-progress.json";
-  const STORAGE_KEY = "buzz-gradebook-progress-cache";
-  const GOAL_STORAGE_KEY = "buzz-gradebook-goal";
+  const JSON_FILE = "gradebook-progress.json";
+  const STORAGE_KEY = "gradebook-progress-cache";
+  const GOAL_STORAGE_KEY = "gradebook-goal";
 
   function cleanText(s){ return (s || "").toString().replace(/\s+/g," ").trim(); }
 

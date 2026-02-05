@@ -1,0 +1,399 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Assignment Dashboard</title>
+  <style>
+    body { font-family: "Times New Roman", Times, serif; margin: 24px; max-width: 980px; }
+    h1 { margin: 0 0 6px; }
+    .muted { color: #555; margin: 0 0 14px; }
+    .top { display:flex; gap:10px; align-items:center; flex-wrap: wrap; }
+    button { padding: 10px 12px; cursor: pointer; }
+    .pill { display:inline-block; padding: 6px 10px; border:1px solid #ddd; border-radius: 999px; background:#fafafa; }
+    .cards { display:grid; grid-template-columns: repeat(4, minmax(160px, 1fr)); gap:10px; margin-top: 14px; }
+    .card { border:1px solid #ddd; border-radius: 14px; padding: 12px; }
+    .big { font-size: 20px; font-weight: 800; }
+    table { width: 100%; border-collapse: collapse; margin-top: 14px; }
+    th, td { border-bottom: 1px solid #ddd; padding: 10px 8px; text-align: left; vertical-align: middle; }
+    .bar { height: 12px; background: #f1f1f1; border-radius: 999px; overflow: hidden; }
+    .bar > div { height: 100%; background: #F4C2C2; width: 0%; }
+    .right { text-align: right; }
+    .warn { color: #b00020; }
+    .section-title { font-size: 1.1em; font-weight: 700; margin: 24px 0 10px; }
+    .per-day-table { margin-top: 6px; }
+    .goals-add { border: 1px solid #ddd; border-radius: 14px; padding: 16px; margin-top: 12px; max-width: 480px; }
+    .goals-add .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 10px; }
+    .goals-add label { min-width: 80px; }
+    .goals-add input[type="date"], .goals-add select { padding: 8px 10px; font-family: inherit; }
+    .goals-list { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
+    .goal-card { border: 1px solid #ddd; border-radius: 14px; padding: 12px 16px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
+    .goal-card .goal-info { flex: 1; min-width: 200px; }
+    .goal-card .goal-info strong { display: block; margin-bottom: 4px; }
+    .goal-card .goal-remove { padding: 6px 10px; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <h1>Assignment Dashboard</h1>
+  <p class="muted">Reads <span class="pill">buzz-gradebook-progress.json</span> from this folder.</p>
+
+  <div class="top">
+    <button id="refreshBtn">Refresh from file</button>
+    <button onclick="window.print()">Print / Save PDF</button>
+    <button id="importBtn">Import downloaded JSON</button>
+    <input id="fileInput" type="file" accept="application/json" style="display:none" />
+    <span class="pill">Last update: <strong id="lastUpdate">—</strong></span>
+    <span class="pill">Status: <span id="status">—</span></span>
+  </div>
+
+  <div class="cards">
+    <div class="card"><div class="muted">Courses</div><div class="big" id="numCourses">—</div></div>
+    <div class="card"><div class="muted">Assignments left (sum)</div><div class="big" id="sumLeft">—</div></div>
+    <div class="card"><div class="muted">Total assignments (sum)</div><div class="big" id="sumTotal">—</div></div>
+    <div class="card"><div class="muted">Overall % complete</div><div class="big" id="overallPct">—</div></div>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Course</th>
+        <th>End date</th>
+        <th>Grade</th>
+        <th>Progress</th>
+        <th>Completed</th>
+        <th>Left</th>
+        <th style="width: 240px;">Bar</th>
+      </tr>
+    </thead>
+    <tbody id="tbody"></tbody>
+  </table>
+
+d  <h2 class="section-title">Per day (to complete on time)</h2>
+  <table class="per-day-table">
+    <thead>
+      <tr><th>Course</th><th>Per day</th></tr>
+    </thead>
+    <tbody id="perDayBody"></tbody>
+  </table>
+
+  <h2 class="section-title">Goals</h2>
+  <div class="goals-add">
+    <div class="row">
+      <label for="goalCourse">Subject</label>
+      <select id="goalCourse"><option value="">— Select course —</option></select>
+    </div>
+    <div class="row">
+      <label for="goalDate">Finish by</label>
+      <input type="date" id="goalDate" />
+    </div>
+    <div class="row">
+      <button type="button" id="addGoalBtn">Add goal</button>
+    </div>
+  </div>
+  <div id="goalsList" class="goals-list"></div>
+
+<script>
+    document.getElementById("importBtn").addEventListener("click", () => {
+  document.getElementById("fileInput").click();
+    });
+
+    document.getElementById("fileInput").addEventListener("change", async (e) => {
+  const file = e.target.files?.[0];
+  if (!file) return;
+
+  const txt = await file.text();
+  const data = JSON.parse(txt);
+  render(data);              // uses your existing render()
+  setStatus("Imported ✅");
+  e.target.value = "";       // allow re-importing same file later
+});
+
+  const JSON_FILE = "buzz-gradebook-progress.json";
+  const STORAGE_KEY = "buzz-gradebook-progress-cache";
+  const GOAL_STORAGE_KEY = "buzz-gradebook-goal";
+
+  function cleanText(s){ return (s || "").toString().replace(/\s+/g," ").trim(); }
+
+  function saveToStorage(data) {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    } catch (e) { console.warn("Could not save to storage", e); }
+  }
+
+  function loadFromStorage() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch (e) { return null; }
+  }
+
+  function loadGoals() {
+    try {
+      const raw = localStorage.getItem(GOAL_STORAGE_KEY);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : (parsed.courseName ? [parsed] : []);
+    } catch (e) { return []; }
+  }
+
+  function saveGoals(goals) {
+    try {
+      if (!goals || goals.length === 0) localStorage.removeItem(GOAL_STORAGE_KEY);
+      else localStorage.setItem(GOAL_STORAGE_KEY, JSON.stringify(goals));
+    } catch (e) { console.warn("Could not save goals", e); }
+  }
+
+  function addGoal() {
+    const sel = document.getElementById("goalCourse");
+    const dateInput = document.getElementById("goalDate");
+    const idx = sel?.value;
+    const finishBy = dateInput?.value;
+    if (!idx || !finishBy) return;
+    const c = lastCourses[Number(idx)];
+    if (!c) return;
+    const goals = loadGoals();
+    if (goals.some(g => (g.courseName || "") === (c.course || "") && (g.finishBy || "") === finishBy)) return;
+    goals.push({ courseName: c.course, finishBy });
+    saveGoals(goals);
+    renderGoalCards();
+    if (sel) sel.value = "";
+    if (dateInput) dateInput.value = "";
+  }
+
+  function removeGoal(index) {
+    const goals = loadGoals();
+    goals.splice(index, 1);
+    saveGoals(goals);
+    renderGoalCards();
+  }
+
+  function renderGoalCards() {
+    const container = document.getElementById("goalsList");
+    if (!container) return;
+    const goals = loadGoals();
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    container.innerHTML = "";
+    goals.forEach((g, i) => {
+      const c = lastCourses.find(x => (x.course || "") === (g.courseName || ""));
+      const finishBy = g.finishBy || "";
+      let subtitle = "Finish by " + (finishBy ? new Date(finishBy + "T12:00:00").toLocaleDateString() : "—");
+      if (c) {
+        const target = finishBy ? new Date(finishBy + "T23:59:59") : null;
+        const targetDay = target ? new Date(target.getFullYear(), target.getMonth(), target.getDate(), 0, 0, 0, 0) : null;
+        const days = targetDay ? Math.ceil((targetDay - today) / (24 * 60 * 60 * 1000)) : 0;
+        if (c.left === 0) subtitle += " — DONE.";
+        else if (days <= 0) subtitle += " — date passed.";
+        else subtitle += " — complete " + (c.left / days).toFixed(2) + " per day (" + c.left + " left).";
+      } else subtitle += ".";
+      const card = document.createElement("div");
+      card.className = "goal-card";
+      card.innerHTML = '<div class="goal-info"><strong>' + escapeHtml(g.courseName || "—") + '</strong><span>' + escapeHtml(subtitle) + '</span></div><button type="button" class="goal-remove">Remove</button>';
+      card.querySelector(".goal-remove").addEventListener("click", () => removeGoal(i));
+      container.appendChild(card);
+    });
+  }
+
+  function scoreToLetter(scorePercent) {
+    if (scorePercent == null || !Number.isFinite(scorePercent)) return null;
+    const n = scorePercent;
+    if (n >= 97) return "A+";
+    if (n >= 93) return "A";
+    if (n >= 90) return "A-";
+    if (n >= 87) return "B+";
+    if (n >= 83) return "B";
+    if (n >= 80) return "B-";
+    if (n >= 77) return "C+";
+    if (n >= 73) return "C";
+    if (n >= 70) return "C-";
+    if (n >= 67) return "D+";
+    if (n >= 63) return "D";
+    if (n >= 60) return "D-";
+    return "F";
+  }
+
+  function fmtLocalTime(iso) {
+    try {
+      const d = new Date(iso);
+      if (Number.isNaN(d.getTime())) return "—";
+      return d.toLocaleString();
+    } catch { return "—"; }
+  }
+
+  function safeNum(n) {
+    return (typeof n === "number" && Number.isFinite(n)) ? n : null;
+  }
+
+  // Parse end date string like "6/1/26" or "2/1/26" (MM/D/YY)
+  function parseEndDate(str) {
+    if (!str || typeof str !== "string") return null;
+    const parts = str.trim().split(/\s*\/\s*/);
+    if (parts.length !== 3) return null;
+    let month = parseInt(parts[0], 10);
+    const day = parseInt(parts[1], 10);
+    let year = parseInt(parts[2], 10);
+    if (Number.isNaN(month) || Number.isNaN(day) || Number.isNaN(year)) return null;
+    if (year < 100) year += 2000; // 26 -> 2026
+    if (month < 1 || month > 12) return null;
+    const d = new Date(year, month - 1, day, 23, 59, 59, 999);
+    return Number.isNaN(d.getTime()) ? null : d;
+  }
+
+  function getDaysRemaining(endDateStr) {
+    const end = parseEndDate(endDateStr);
+    if (!end) return null;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const endDay = new Date(end.getFullYear(), end.getMonth(), end.getDate(), 0, 0, 0, 0);
+    const ms = endDay - today;
+    return Math.ceil(ms / (24 * 60 * 60 * 1000));
+  }
+
+  let lastCourses = [];
+
+  function setStatus(msg, isWarn=false) {
+    const el = document.getElementById("status");
+    el.textContent = msg;
+    el.className = isWarn ? "warn" : "";
+  }
+
+  async function loadData() {
+    // cache-bust so refresh always reads the newest downloaded file
+    const url = `${JSON_FILE}?t=${Date.now()}`;
+
+    const res = await fetch(url, { cache: "no-store" });
+    if (!res.ok) {
+      throw new Error(`Couldn't load ${JSON_FILE} (HTTP ${res.status}). Make sure the file is in the same folder and you're using a local server.`);
+    }
+    return await res.json();
+  }
+
+  function render(data) {
+    const last = data?.scrapedAt ? fmtLocalTime(data.scrapedAt) : "—";
+    document.getElementById("lastUpdate").textContent = last;
+
+    const courses = Array.isArray(data?.courses) ? data.courses : [];
+    document.getElementById("numCourses").textContent = courses.length;
+
+    let sumLeft = 0, sumTotal = 0, sumCompleted = 0;
+
+    for (const c of courses) {
+      const a = c.assignments;
+      if (a && safeNum(a.total) != null && safeNum(a.completed) != null) {
+        sumTotal += a.total;
+        sumCompleted += a.completed;
+        sumLeft += (safeNum(a.left) != null) ? a.left : (a.total - a.completed);
+      }
+    }
+
+    document.getElementById("sumLeft").textContent = sumLeft.toString();
+    document.getElementById("sumTotal").textContent = sumTotal.toString();
+
+    const overallPct = sumTotal > 0 ? (sumCompleted / sumTotal) * 100 : null;
+    document.getElementById("overallPct").textContent = (overallPct == null) ? "—" : `${overallPct.toFixed(2)}%`;
+
+    const tbody = document.getElementById("tbody");
+    tbody.innerHTML = "";
+
+    courses.forEach(c => {
+      const course = cleanText(c.course);
+      const endDate = cleanText(c.endDate);
+      const score = safeNum(c.scorePercent);
+      const progress = safeNum(c.progressPercent);
+
+      const a = c.assignments || null;
+      const completed = a && safeNum(a.completed) != null ? a.completed : null;
+      const total = a && safeNum(a.total) != null ? a.total : null;
+      const left = a && safeNum(a.left) != null ? a.left : (total != null && completed != null ? (total - completed) : null);
+
+      const donePct = (total && completed != null) ? (completed / total) * 100
+                    : (progress != null) ? progress
+                    : null;
+
+      const gradeStr = score == null ? "—" : (score.toFixed(2) + "%" + (scoreToLetter(score) ? " (" + scoreToLetter(score) + ")" : ""));
+      const progressStr = progress == null ? "—" : (Number(progress).toFixed(2) + "%");
+
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${escapeHtml(course || "—")}</td>
+        <td>${escapeHtml(endDate || "—")}</td>
+        <td>${gradeStr}</td>
+        <td>${progressStr}</td>
+        <td>${(completed == null || total == null) ? "—" : `${completed} / ${total}`}</td>
+        <td>${left == null ? "—" : left}</td>
+        <td>
+          <div class="bar"><div style="width:${donePct == null ? 0 : Math.max(0, Math.min(100, donePct)).toFixed(2)}%"></div></div>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+    // Per-day requirements
+    lastCourses = [];
+    const perDayBody = document.getElementById("perDayBody");
+    perDayBody.innerHTML = "";
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    courses.forEach(c => {
+      const courseName = cleanText(c.course);
+      const endDateStr = cleanText(c.endDate);
+      const a = c.assignments || null;
+      const left = a && safeNum(a.left) != null ? a.left : (a && safeNum(a.total) != null && safeNum(a.completed) != null ? (a.total - a.completed) : null);
+      const progress = safeNum(c.progressPercent);
+      const daysRemaining = getDaysRemaining(endDateStr);
+      const isDone = (left != null && left === 0) || (progress != null && progress >= 100) || (daysRemaining != null && daysRemaining <= 0);
+      const perDayText = isDone ? "DONE" : (left != null && daysRemaining != null && daysRemaining > 0 ? (left / daysRemaining).toFixed(2) + " per day" : "—");
+
+      lastCourses.push({ course: courseName, left: left ?? 0, endDate: endDateStr, progress });
+
+      const tr = document.createElement("tr");
+      tr.innerHTML = `<td>${escapeHtml(courseName || "—")}</td><td>${escapeHtml(perDayText)}</td>`;
+      perDayBody.appendChild(tr);
+    });
+
+    // Goals dropdown (for adding new goals)
+    const goalSelect = document.getElementById("goalCourse");
+    goalSelect.innerHTML = '<option value="">— Select course —</option>';
+    lastCourses.forEach((c, i) => {
+      const opt = document.createElement("option");
+      opt.value = String(i);
+      opt.textContent = c.course || "—";
+      goalSelect.appendChild(opt);
+    });
+
+    renderGoalCards();
+    saveToStorage(data);
+  }
+
+  function escapeHtml(s){
+    return (s || "").toString().replace(/[&<>"']/g,m=>({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[m]));
+  }
+
+  async function refresh() {
+    try {
+      setStatus("Loading…");
+      const data = await loadData();
+      render(data);
+      setStatus("Loaded ✅");
+    } catch (e) {
+      console.error(e);
+      const cached = loadFromStorage();
+      if (cached) {
+        render(cached);
+        setStatus("Using last saved data (file unavailable)");
+      } else {
+        setStatus(e.message || "Failed to load.", true);
+      }
+    }
+  }
+
+  document.getElementById("refreshBtn").addEventListener("click", refresh);
+  document.getElementById("addGoalBtn").addEventListener("click", addGoal);
+
+  // On open: try file first; if it fails, auto-refill from last saved data
+  refresh();
+</script>
+
+</body>
+</html>

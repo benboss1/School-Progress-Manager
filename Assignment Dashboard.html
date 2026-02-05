@@ -62,6 +62,8 @@
     .preference-colors label { font-size: 12px; color: var(--muted); margin-right: 2px; }
     .preference-colors input[type="color"] { width: 28px; height: 28px; padding: 0; border: 1px solid var(--border); border-radius: 6px; cursor: pointer; background: transparent; }
     .preference-colors.hidden { display: none; }
+    .grade-header { white-space: nowrap; }
+    .grade-header .grade-format-switch { margin-left: 6px; padding: 2px 6px; font-size: 12px; font-family: inherit; background: var(--pill-bg); color: var(--text); border: 1px solid var(--border); border-radius: 4px; cursor: pointer; }
   </style>
 </head>
 <body>
@@ -108,7 +110,13 @@
       <tr>
         <th>Course</th>
         <th>End date</th>
-        <th>Grade</th>
+        <th class="grade-header">
+          <span>Grade</span>
+          <select id="gradeFormatSelect" class="grade-format-switch" title="Standard: letter only (A, B, C, D, F). Epic Charter Schools uses this. College: plus/minus scale (A+, A, A-, B+, B, B-, etc.) for finer distinction.">
+            <option value="standard">Standard</option>
+            <option value="college">College</option>
+          </select>
+        </th>
         <th>Progress</th>
         <th>Completed</th>
         <th>Left</th>
@@ -121,7 +129,7 @@
   <h2 class="section-title">Per day (to complete on time)</h2>
   <table class="per-day-table">
     <thead>
-      <tr><th>Course</th><th>Per day</th></tr>
+      <tr><th>Course</th><th>All days</th><th>Work week</th><th>Per day</th></tr>
     </thead>
     <tbody id="perDayBody"></tbody>
   </table>
@@ -162,6 +170,7 @@
   const STORAGE_KEY = "gradebook-progress-cache";
   const GOAL_STORAGE_KEY = "gradebook-goal";
   const THEME_STORAGE_KEY = "dashboard-theme";
+  const GRADE_FORMAT_KEY = "dashboard-grade-format";
   const THEME_PREFERENCE_KEY = "dashboard-theme-preference";
 
   const defaultPreference = { bg: "#ffffff", text: "#111111", muted: "#555555", border: "#dddddd", card: "#ffffff", bar: "#F4C2C2" };
@@ -329,7 +338,7 @@
     });
   }
 
-  function scoreToLetter(scorePercent) {
+  function scoreToLetterCollege(scorePercent) {
     if (scorePercent == null || !Number.isFinite(scorePercent)) return null;
     const n = scorePercent;
     if (n >= 97) return "A+";
@@ -345,6 +354,23 @@
     if (n >= 63) return "D";
     if (n >= 60) return "D-";
     return "F";
+  }
+
+  function scoreToLetterStandard(scorePercent) {
+    if (scorePercent == null || !Number.isFinite(scorePercent)) return null;
+    const n = scorePercent;
+    if (n >= 90) return "A";
+    if (n >= 80) return "B";
+    if (n >= 70) return "C";
+    if (n >= 60) return "D";
+    return "F";
+  }
+
+  function getGradeFormat() {
+    try { return localStorage.getItem(GRADE_FORMAT_KEY) || "standard"; } catch (e) { return "standard"; }
+  }
+  function getScoreToLetter() {
+    return getGradeFormat() === "college" ? scoreToLetterCollege : scoreToLetterStandard;
   }
 
   function fmtLocalTime(iso) {
@@ -384,7 +410,26 @@
     return Math.ceil(ms / (24 * 60 * 60 * 1000));
   }
 
+  function getWeekdaysRemaining(endDateStr) {
+    const end = parseEndDate(endDateStr);
+    if (!end) return null;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const endDay = new Date(end.getFullYear(), end.getMonth(), end.getDate(), 0, 0, 0, 0);
+    if (endDay < today) return 0;
+    let count = 0;
+    const d = new Date(today);
+    const msPerDay = 24 * 60 * 60 * 1000;
+    while (d <= endDay) {
+      const day = d.getDay();
+      if (day !== 0 && day !== 6) count++;
+      d.setTime(d.getTime() + msPerDay);
+    }
+    return count;
+  }
+
   let lastCourses = [];
+  let lastRenderedData = null;
 
   function setStatus(msg, isWarn=false) {
     const el = document.getElementById("status");
@@ -404,6 +449,7 @@
   }
 
   function render(data) {
+    lastRenderedData = data;
     const last = data?.scrapedAt ? fmtLocalTime(data.scrapedAt) : "—";
     document.getElementById("lastUpdate").textContent = last;
 
@@ -445,9 +491,9 @@
                     : (progress != null) ? progress
                     : null;
 
+      const scoreToLetter = getScoreToLetter();
       const gradeStr = score == null ? "—" : (score.toFixed(2) + "%" + (scoreToLetter(score) ? " (" + scoreToLetter(score) + ")" : ""));
       const progressStr = progress == null ? "—" : (Number(progress).toFixed(2) + "%");
-
       const tr = document.createElement("tr");
       tr.innerHTML = `
         <td>${escapeHtml(course || "—")}</td>
@@ -482,8 +528,13 @@
 
       lastCourses.push({ course: courseName, left: left ?? 0, endDate: endDateStr, progress });
 
+      const daysLeft = getDaysRemaining(endDateStr);
+      const weekdaysLeft = getWeekdaysRemaining(endDateStr);
+      const showDone = (progress != null && progress >= 100) || (daysLeft != null && daysLeft <= 0);
+      const daysLeftStr = showDone ? "DONE" : (daysLeft == null ? "—" : (daysLeft <= 0 ? "0" : String(daysLeft)));
+      const weekdaysStr = showDone ? "DONE" : (weekdaysLeft == null ? "—" : String(weekdaysLeft));
       const tr = document.createElement("tr");
-      tr.innerHTML = `<td>${escapeHtml(courseName || "—")}</td><td>${escapeHtml(perDayText)}</td>`;
+      tr.innerHTML = `<td>${escapeHtml(courseName || "—")}</td><td>${daysLeftStr}</td><td>${weekdaysStr}</td><td>${escapeHtml(perDayText)}</td>`;
       perDayBody.appendChild(tr);
     });
 
@@ -525,6 +576,15 @@
 
   document.getElementById("refreshBtn").addEventListener("click", refresh);
   document.getElementById("addGoalBtn").addEventListener("click", addGoal);
+
+  const gradeFormatSelect = document.getElementById("gradeFormatSelect");
+  if (gradeFormatSelect) {
+    gradeFormatSelect.value = getGradeFormat();
+    gradeFormatSelect.addEventListener("change", () => {
+      try { localStorage.setItem(GRADE_FORMAT_KEY, gradeFormatSelect.value); } catch (e) {}
+      if (lastRenderedData) render(lastRenderedData);
+    });
+  }
 
   // On open: try file first; if it fails, auto-refill from last saved data
   refresh();

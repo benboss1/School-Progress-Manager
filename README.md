@@ -5,6 +5,7 @@
 # Extensions setting (Firefox)
   1. Go to about:debugging#/runtime/this-firefox.
   2. Add manifest (in Gradebook Exporter) as an addon
+  3. You will need to reload it after you close FireFox
 
 # Extensions setting (Chrome)
   1. Go to chrome://extensions
